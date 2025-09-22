@@ -43,11 +43,7 @@ Ensure you have Python 3.8 or higher installed (python --version to check).
 Install required dependencies:pip install Pillow
 
 
-Clone or download this repository:git clone https://github.com/yourusername/sf1-portrait-tool.git
-
-
 Navigate to the project directory and run:python SF1PortraitTool.py
-
 
 
 Note: The tkinter library is required and typically included with Python. Ensure it is available on your system.
