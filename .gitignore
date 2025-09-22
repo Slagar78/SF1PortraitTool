@@ -30,3 +30,4 @@ build/
 # Test files and large binaries (optional, if you don't want to include them)
 *.bin
 *.png
+*.spec
