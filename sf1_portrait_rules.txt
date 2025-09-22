@@ -1,0 +1,204 @@
+================================================================================
+                          SF1 PORTRAIT FILE FORMAT SPECIFICATION
+                          =====================================
+================================================================================
+
+SF1 Portrait Parser Rules for portraitXX.bin files
+--------------------------------------------------
+
+1. BLOCK START MARKER
+   -------------------
+   • Every block (blink/talk) MUST start with byte 00
+   • If first byte is not 00, parsing has failed
+
+2. MINIMUM BLOCK LENGTH
+   ---------------------
+   BLINK BLOCK:
+   • Minimum length: 2 bytes (00 00 = no animation frames)
+   
+   TALK BLOCK:
+   • Minimum length: 2 bytes (00 00 = no animation frames)
+
+3. BLOCK STRUCTURE
+   ----------------
+   • Byte 1: 00 (block marker)
+   • Byte 2: Frame count (number of animation frames)
+   • Bytes 3-N: Frame data as (x,y) coordinate pairs or tile indices
+     Example: 02 03 00 28 03 03 00 2C
+     Format: [x1 y1 x2 y2 x3 y3 ...]
+   • Block continues until next 00 marker or end of section
+
+4. FILE LAYOUT ORDER
+   ------------------
+   1. BLINK BLOCK (always starts with 00...)
+   2. TALK BLOCK (always starts with 00...)
+   3. PALETTE (exactly 32 bytes = 16 colors)
+   4. MAGIC BYTES (08 08)
+   5. COMPRESSED GRAPHICS DATA
+
+5. CORRECT FILE EXAMPLE
+   --------------------
+   BLINK:     00 02 02 03 00 28 03 03 00 2C
+   TALK:      00 03 02 03 00 28 03 03 00 2C 04 03 00 2F
+   PALETTE:   [32 bytes - 16 colors, first color always transparent]
+   MAGIC:     08 08 (8x8 tiles = 64x64 pixels)
+   GRAPHICS:  [Compressed pixel data follows]
+
+6. PALETTE FORMAT
+   ---------------
+   • 32 bytes total (16 colors × 2 bytes per color)
+   • Color 0 (first color): Always transparent (00 00)
+   • Each color: 16-bit word (low byte + high byte)
+   • Genesis/Mega Drive 3-3-2 RGB encoding
+
+7. GRAPHICS COMPRESSION
+   ---------------------
+   • RLE + LZ77 hybrid compression
+   • Width/Height encoded as tile count × 8 pixels
+   • Magic bytes 08 08 = 64×64 pixel portrait
+   • Custom decompression algorithm required
+
+--------------------------------------------------------------------------------
+                                    END OF SPECIFICATION
+--------------------------------------------------------------------------------
+
+
+================================================================================
+                          SPECIFICA DEL FORMATO FILE PORTRAIT SF1
+                          =======================================
+================================================================================
+
+Regole del parser SF1 Portrait per file portraitXX.bin
+------------------------------------------------------
+
+1. MARCATORE DI INIZIO BLOCCO
+   ---------------------------
+   • Ogni blocco (blink/talk) DEVE iniziare con byte 00
+   • Se il primo byte non è 00, il parsing è fallito
+
+2. LUNGHEZZA MINIMA BLOCCO
+   ------------------------
+   BLOCCO BLINK:
+   • Lunghezza minima: 2 byte (00 00 = nessun frame animazione)
+   
+   BLOCCO TALK:
+   • Lunghezza minima: 2 byte (00 00 = nessun frame animazione)
+
+3. STRUTTURA BLOCCO
+   -----------------
+   • Byte 1: 00 (marcatore blocco)
+   • Byte 2: Conteggio frame (numero di frame animazione)
+   • Byte 3-N: Dati frame come coppie coordinate (x,y) o indici tile
+     Esempio: 02 03 00 28 03 03 00 2C
+     Formato: [x1 y1 x2 y2 x3 y3 ...]
+   • Il blocco continua fino al prossimo marcatore 00 o fine sezione
+
+4. ORDINE LAYOUT FILE
+   -------------------
+   1. BLOCCO BLINK (inizia sempre con 00...)
+   2. BLOCCO TALK (inizia sempre con 00...)
+   3. PALETTE (esattamente 32 byte = 16 colori)
+   4. BYTE MAGICI (08 08)
+   5. DATI GRAFICI COMPRESSI
+
+5. ESEMPIO FILE CORRETTO
+   ----------------------
+   BLINK:     00 02 02 03 00 28 03 03 00 2C
+   TALK:      00 03 02 03 00 28 03 03 00 2C 04 03 00 2F
+   PALETTE:   [32 byte - 16 colori, primo colore sempre trasparente]
+   MAGIC:     08 08 (8×8 tile = 64×64 pixel)
+   GRAFICA:   [Dati pixel compressi seguono]
+
+6. FORMATO PALETTE
+   ----------------
+   • 32 byte totali (16 colori × 2 byte per colore)
+   • Colore 0 (primo colore): Sempre trasparente (00 00)
+   • Ogni colore: Word a 16 bit (byte basso + byte alto)
+   • Codifica RGB 3-3-2 Genesis/Mega Drive
+
+7. COMPRESSIONE GRAFICA
+   ---------------------
+   • Compressione ibrida RLE + LZ77
+   • Larghezza/Altzza codificata come conteggio tile × 8 pixel
+   • Byte magici 08 08 = ritratto 64×64 pixel
+   • Richiede algoritmo di decompressione personalizzato
+
+--------------------------------------------------------------------------------
+                                        FINE SPECIFICA
+--------------------------------------------------------------------------------
+
+
+================================================================================
+                       ПРАВИЛА ПАРСИНГА ПОРТРЕТОВ SF1 (portraitXX.bin)
+                       ===============================================
+================================================================================
+
+Правила парсера SF1 Portrait для файлов portraitXX.bin
+-----------------------------------------------------
+
+1. МАРКЕР НАЧАЛА БЛОКА
+   --------------------
+   • Каждый блок (blink/talk) ОБЯЗАН начинаться с байта 00
+   • Если первый байт не равен 00, парсинг выполнен неправильно
+
+2. МИНИМАЛЬНАЯ ДЛИНА БЛОКА
+   ------------------------
+   БЛОК BLINK:
+   • Минимальная длина: 2 байта (00 00 = отсутствие кадров анимации)
+   
+   БЛОК TALK:
+   • Минимальная длина: 2 байта (00 00 = отсутствие кадров анимации)
+
+3. СТРУКТУРА БЛОКА
+   ----------------
+   • Байт 1: 00 (маркер блока)
+   • Байт 2: Количество кадров (число кадров анимации)
+   • Байты 3-N: Данные кадров в виде пар координат (x,y) или индексов тайлов
+     Пример: 02 03 00 28 03 03 00 2C
+     Формат: [x1 y1 x2 y2 x3 y3 ...]
+   • Блок продолжается до следующего маркера 00 или конца секции
+
+4. ПОРЯДОК РАЗМЕЩЕНИЯ В ФАЙЛЕ
+   ---------------------------
+   1. БЛОК BLINK (всегда начинается с 00...)
+   2. БЛОК TALK (всегда начинается с 00...)
+   3. ПАЛИТРА (ровно 32 байта = 16 цветов)
+   4. МАГИЧЕСКИЕ БАЙТЫ (08 08)
+   5. СЖАТЫЕ ГРАФИЧЕСКИЕ ДАННЫЕ
+
+5. ПРИМЕР КОРРЕКТНОГО ФАЙЛА
+   -------------------------
+   BLINK:     00 02 02 03 00 28 03 03 00 2C
+   TALK:      00 03 02 03 00 28 03 03 00 2C 04 03 00 2F
+   ПАЛИТРА:   [32 байта - 16 цветов, первый цвет всегда прозрачный]
+   MAGIC:     08 08 (8×8 тайлов = 64×64 пикселей)
+   ГРАФИКА:   [Сжатые данные пикселей следуют далее]
+
+6. ФОРМАТ ПАЛИТРЫ
+   ---------------
+   • Всего 32 байта (16 цветов × 2 байта на цвет)
+   • Цвет 0 (первый цвет): Всегда прозрачный (00 00)
+   • Каждый цвет: 16-битное слово (младший байт + старший байт)
+   • Кодировка RGB 3-3-2 Genesis/Mega Drive
+
+7. КОМПРЕССИЯ ГРАФИКИ
+   -------------------
+   • Гибридная компрессия RLE + LZ77
+   • Ширина/Высота кодируется как количество тайлов × 8 пикселей
+   • Магические байты 08 08 = портрет 64×64 пикселя
+   • Требуется собственный алгоритм декомпрессии
+
+--------------------------------------------------------------------------------
+                                         КОНЕЦ СПЕЦИФИКАЦИИ
+--------------------------------------------------------------------------------
+
+таблица плиток анимации портрета SF1
+
+(6,0)=48 → 00 28  
+(7,0)=49 → 00 2C  
+(6,1)=50 → 00 29  
+(7,1)=51 → 00 2D  
+(6,2)=52 → 00 2A  
+(7,2)=53 → 00 2E  
+(6,3)=54 → 00 2B  
+(7,3)=55 → 00 2F
