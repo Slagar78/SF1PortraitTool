@@ -29,7 +29,7 @@ class AnimationEditor:
 
         self.window = tk.Toplevel(parent)
         self.window.title("Edit Animations")
-        self.window.geometry("1300x800")
+        self.window.geometry("1000x600")
 
         # выбор анимации
         choice_frame = tk.Frame(self.window)
@@ -83,18 +83,28 @@ class AnimationEditor:
         edit_frame = tk.LabelFrame(self.window, text="Edit selected frame")
         edit_frame.pack(side=tk.TOP, pady=5)
         tk.Label(edit_frame, text="X").grid(row=0,column=0)
-        self.spin_x = tk.Spinbox(edit_frame, from_=0, to=7, width=3)
+        self.var_x = tk.StringVar()
+        self.spin_x = tk.Spinbox(edit_frame, from_=0, to=7, width=3, textvariable=self.var_x)
         self.spin_x.grid(row=0,column=1)
         tk.Label(edit_frame, text="Y").grid(row=0,column=2)
-        self.spin_y = tk.Spinbox(edit_frame, from_=0, to=7, width=3)
+        self.var_y = tk.StringVar()
+        self.spin_y = tk.Spinbox(edit_frame, from_=0, to=7, width=3, textvariable=self.var_y)
         self.spin_y.grid(row=0,column=3)
         tk.Label(edit_frame, text="X'").grid(row=0,column=4)
-        self.spin_x2 = tk.Spinbox(edit_frame, from_=0, to=7, width=3)
+        self.var_x2 = tk.StringVar()
+        self.spin_x2 = tk.Spinbox(edit_frame, from_=6, to=7, width=3, textvariable=self.var_x2)
         self.spin_x2.grid(row=0,column=5)
         tk.Label(edit_frame, text="Y'").grid(row=0,column=6)
-        self.spin_y2 = tk.Spinbox(edit_frame, from_=0, to=7, width=3)
+        self.var_y2 = tk.StringVar()
+        self.spin_y2 = tk.Spinbox(edit_frame, from_=0, to=3, width=3, textvariable=self.var_y2)
         self.spin_y2.grid(row=0,column=7)
         tk.Button(edit_frame, text="Apply Values", command=self.apply_spinbox_values).grid(row=0,column=8,padx=5)
+
+        # trace для реального времени обновления подсветки
+        self.var_x.trace('w', self.update_highlight_from_spins)
+        self.var_y.trace('w', self.update_highlight_from_spins)
+        self.var_x2.trace('w', self.update_highlight_from_spins)
+        self.var_y2.trace('w', self.update_highlight_from_spins)
 
         # кнопки
         btn_frame = tk.Frame(self.window)
@@ -143,7 +153,7 @@ class AnimationEditor:
             for x in range(6,8):
                 self.canvas.create_rectangle(x*cell, y*cell,
                                              (x+1)*cell, (y+1)*cell,
-                                             outline="red", width=2)
+                                             outline="gray", width=2)
 
     def on_canvas_click(self, event):
         """Выбор плитки по клику"""
@@ -153,7 +163,7 @@ class AnimationEditor:
         if x>=8 or y>=8: return
         self.selected_tile = (x,y)
 
-    def highlight_tiles(self, x,y,x2,y2):
+    def highlight_tiles(self, x, y, x2, y2):
         cell = self.scale*8
         self.canvas.delete("highlight")
         # Обход неверных координат
@@ -181,27 +191,38 @@ class AnimationEditor:
         values = self.tree.item(sel[0],'values')
         # значения могут быть str; приводим к int/str корректно
         vx = int(values[0]); vy = int(values[1]); vx2 = int(values[2]); vy2 = int(values[3])
-        self.spin_x.delete(0,'end'); self.spin_x.insert(0,str(vx))
-        self.spin_y.delete(0,'end'); self.spin_y.insert(0,str(vy))
-        self.spin_x2.delete(0,'end'); self.spin_x2.insert(0,str(vx2))
-        self.spin_y2.delete(0,'end'); self.spin_y2.insert(0,str(vy2))
+        self.var_x.set(str(vx))
+        self.var_y.set(str(vy))
+        self.var_x2.set(str(vx2))
+        self.var_y2.set(str(vy2))
         self.highlight_tiles(vx, vy, vx2, vy2)
+
+    def update_highlight_from_spins(self, *args):
+        try:
+            x = max(0, min(7, int(self.var_x.get())))
+            y = max(0, min(7, int(self.var_y.get())))
+            x2 = max(6, min(7, int(self.var_x2.get())))
+            y2 = max(0, min(3, int(self.var_y2.get())))
+            self.highlight_tiles(x, y, x2, y2)
+        except ValueError:
+            # если значение не int, игнорируем
+            pass
 
     def apply_spinbox_values(self):
         sel = self.tree.selection()
         if not sel: return
         idx = self.tree.index(sel[0])
         frames = self.blink_frames if self.current_anim_type.get()=='blink' else self.talk_frames
-        x = max(0,min(7,int(self.spin_x.get())))
-        y = max(0,min(7,int(self.spin_y.get())))
-        x2 = max(0,min(7,int(self.spin_x2.get())))
-        y2 = max(0,min(7,int(self.spin_y2.get())))
+        x = max(0,min(7,int(self.var_x.get())))
+        y = max(0,min(7,int(self.var_y.get())))
+        x2 = max(6,min(7,int(self.var_x2.get())))
+        y2 = max(0,min(3,int(self.var_y2.get())))
         frames[idx] = (x,y,x2,y2)
         self.refresh_table()
 
     def add_frame(self):
         frames = self.blink_frames if self.current_anim_type.get()=='blink' else self.talk_frames
-        frames.append((0,0,0,0))
+        frames.append((0,0,6,0))
         self.refresh_table()
 
     def delete_frame(self):
