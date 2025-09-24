@@ -84,7 +84,7 @@ class AnimationEditor:
         edit_frame.pack(side=tk.TOP, pady=5)
         tk.Label(edit_frame, text="X").grid(row=0,column=0)
         self.var_x = tk.StringVar()
-        self.spin_x = tk.Spinbox(edit_frame, from_=0, to=7, width=3, textvariable=self.var_x)
+        self.spin_x = tk.Spinbox(edit_frame, from_=0, to=5, width=3, textvariable=self.var_x)
         self.spin_x.grid(row=0,column=1)
         tk.Label(edit_frame, text="Y").grid(row=0,column=2)
         self.var_y = tk.StringVar()

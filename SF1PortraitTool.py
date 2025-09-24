@@ -242,13 +242,13 @@ class PortraitViewerApp:
                 self.last_log_text = f"Файл: {os.path.basename(file_path)}\n"
                 self.last_log_text += f"Размер: {len(data)} байт\n"
                 self.last_log_text += f"Непрозрачных пикселей: {non_trans} из 4096\n"
-                self.last_log_text += f"Палитра:\n{palette_info}\n"
+                self.last_log_text += f"Palette:\n{palette_info}\n"
                 
                 self.text.delete(1.0, tk.END)
                 self.text.insert(tk.END, self.last_log_text)
                 
                 self.redraw_image()
-                self.status.config(text=f"✅ Открыт портрет (RLE7): {os.path.basename(file_path)} | {non_trans} пикселей")
+                self.status.config(text=f"✅ Открыт портрет (RLE): {os.path.basename(file_path)} | {non_trans} пикселей")
                 
                 # Удаляем временный файл
                 os.remove(temp_png_path)
@@ -265,20 +265,23 @@ class PortraitViewerApp:
             title=LANGS[self.current_lang]['open_png_file'],
             filetypes=[('PNG files', '*.png'), ('All files', '*.*')]
         )
+
         if file_path:
             try:
                 img = Image.open(file_path).convert('RGBA')
                 width, height = img.size
                 if width != 64 or height != 64:
                     raise ValueError("Размер изображения должен быть 64x64 пикселей")
-                
+
                 pixels = list(img.getdata())
                 colors = set(pixel[:3] for pixel in pixels if pixel[3] != 0)
                 if len(colors) > 15:
                     raise ValueError("Максимум 16 цветов в палитре (включая прозрачный)")
 
+                # Создание палитры с нулевым прозрачным слотом
                 palette = [(0, 0, 0, 0)]
                 color_map = {(0, 0, 0, 0): 0}
+
                 for r, g, b, a in pixels:
                     if a == 0:
                         continue
@@ -286,10 +289,12 @@ class PortraitViewerApp:
                     if color not in color_map and len(palette) < 16:
                         palette.append((r, g, b, 255))
                         color_map[color] = len(palette) - 1
-                
-                while len(palette) < 16:
-                    palette.append((0, 0, 0, 0))
 
+                # Принудительно гарантия прозрачного нулевого слота
+                palette[0] = (0, 0, 0, 0)
+                color_map = {c[:3]: i for i, c in enumerate(palette)}
+
+                # Индексируем пиксели
                 indexed_pixels = []
                 for r, g, b, a in pixels:
                     if a == 0:
@@ -304,10 +309,17 @@ class PortraitViewerApp:
                 self.last_file_path = file_path
                 self.last_parser = None
 
-                total_pixels = 64*64
+                total_pixels = 64 * 64
                 non_trans_calc = sum(1 for px in pixels if px[3] != 0)
-                palette_info = ', '.join([f"{i:02X} ({r},{g},{b},{a})" for i, (r, g, b, a) in enumerate(palette) if i < len(colors) + 1])
-                self.last_log_text = f"Файл: {os.path.basename(file_path)}\nNon-transparent: {non_trans_calc} из {total_pixels}\n\nПалитра:\n{palette_info}\n"
+                palette_info = ', '.join(
+                    [f"{i:02X} ({r},{g},{b},{a})" for i, (r, g, b, a) in enumerate(palette) if i < len(colors) + 1]
+                )
+                self.last_log_text = (
+                    f"Файл: {os.path.basename(file_path)}\n"
+                    f"Non-transparent: {non_trans_calc} из {total_pixels}\n\n"
+                    f"Палитра:\n{palette_info}\n"
+                )
+
                 self.text.delete(1.0, tk.END)
                 self.text.insert(tk.END, self.last_log_text)
 
@@ -318,7 +330,9 @@ class PortraitViewerApp:
                 import traceback
                 error_details = traceback.format_exc()
                 print(f"Полная ошибка: {error_details}")
-                messagebox.showerror("Ошибка", f"Ошибка при загрузке PNG:\n{str(e)}\n\nПроверь консоль для подробностей.")
+                messagebox.showerror(
+                    "Ошибка", f"Ошибка при загрузке PNG:\n{str(e)}\n\nПроверь консоль для подробностей."
+                )
                 self.status.config(text=f"❌ Ошибка: {str(e)}")
 
     def save_image(self):
