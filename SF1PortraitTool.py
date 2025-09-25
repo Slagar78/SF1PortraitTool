@@ -10,6 +10,7 @@ from SF1PortraitDecompressor import SF1PortraitDecompressor
 from SF1PortraitCompressor import SF1PortraitCompressor
 from Lingua import LANGS
 from RLEDecompressor import BitReader, read_palette_from_header, decompress_from_my_compressor
+from RleParser import RleParser
 from AnimationEditor import AnimationEditor
 
 class PortraitViewerApp:
@@ -200,57 +201,67 @@ class PortraitViewerApp:
 
     def open_portrait(self):
         file_path = filedialog.askopenfilename(title=LANGS[self.current_lang]['open_portrait'],
-                                               filetypes=[('Binary files','*.bin'),('All files','*.*')])
+                                               filetypes=[('Binary files', '*.bin'), ('All files', '*.*')])
         if file_path:
             try:
                 self.last_file_path = file_path
                 with open(file_path, 'rb') as f:
                     data = f.read()
+
+                parser = RleParser(file_path)
+                self.last_parser = parser
+                self.last_log_text = parser.get_summary_text()
                 
-                # Используем RLEDecompressor для распаковки
+                if len(parser.palette) != 32:
+                    raise ValueError("Неполные или отсутствующие данные палитры в файле.")
+
+                def decode_palette_genesis(palette_data):
+                    pal = []
+                    for i in range(0, 32, 2):
+                        first = palette_data[i]
+                        second = palette_data[i+1]
+                        b_n = first & 0x0F
+                        g_n = (second >> 4) & 0x0F
+                        r_n = second & 0x0F
+                        r = int(round(r_n * 255 / 15))  # Изменено на /15 без mapping
+                        g = int(round(g_n * 255 / 15))
+                        b = int(round(b_n * 255 / 15))
+                        alpha = 0 if i == 0 else 255
+                        pal.append((r, g, b, alpha))
+                    return pal
+
+                self.last_palette = decode_palette_genesis(parser.palette)
+
+                graphic_data_offset = parser.graphic_offset
+                if graphic_data_offset is None or graphic_data_offset >= len(data):
+                    raise ValueError("Не удалось определить смещение графических данных.")
+
                 file_stream = io.BytesIO(data)
-                temp_png_path = "temp_decompressed.png"  # Временный файл для распаковки
+                
+                temp_png_path = "temp_decompressed.png"
                 decompress_from_my_compressor(file_stream, temp_png_path)
                 
-                # Открываем распакованный PNG
                 img = Image.open(temp_png_path).convert('RGBA')
                 self.last_image = img
                 
-                # Получаем палитру из заголовка
-                palette = read_palette_from_header(data)
-                self.last_palette = palette
-                
-                # Получаем индексированные пиксели из изображения
                 pixels = list(img.getdata())
-                # Создаём color_map для соответствия цветов палитре
-                color_map = {(r, g, b, a): i for i, (r, g, b, a) in enumerate(palette)}
+                color_map = {(r, g, b, a): i for i, (r, g, b, a) in enumerate(self.last_palette)}
                 self.last_pixels = []
                 for r, g, b, a in pixels:
                     if a == 0:
                         self.last_pixels.append('0')
                     else:
-                        # Находим ближайший цвет в палитре
                         color_key = (r, g, b, a)
                         idx = color_map.get(color_key, 0)
                         self.last_pixels.append(f"{idx:X}")
                 
-                # Подсчёт непрозрачных пикселей
                 non_trans = sum(1 for px in pixels if px[3] != 0)
-                
-                # Формируем лог
-                palette_info = ', '.join([f"{i:02X} ({r},{g},{b},{a})" for i, (r,g,b,a) in enumerate(palette)])
-                self.last_log_text = f"Файл: {os.path.basename(file_path)}\n"
-                self.last_log_text += f"Размер: {len(data)} байт\n"
-                self.last_log_text += f"Непрозрачных пикселей: {non_trans} из 4096\n"
-                self.last_log_text += f"Palette:\n{palette_info}\n"
                 
                 self.text.delete(1.0, tk.END)
                 self.text.insert(tk.END, self.last_log_text)
-                
                 self.redraw_image()
-                self.status.config(text=f"✅ Открыт портрет (RLE): {os.path.basename(file_path)} | {non_trans} пикселей")
+                self.status.config(text=f"✅ Открыт портрет (RLE7): {os.path.basename(file_path)} | {non_trans} пикселей")
                 
-                # Удаляем временный файл
                 os.remove(temp_png_path)
                 
             except Exception as e:
@@ -265,23 +276,20 @@ class PortraitViewerApp:
             title=LANGS[self.current_lang]['open_png_file'],
             filetypes=[('PNG files', '*.png'), ('All files', '*.*')]
         )
-
         if file_path:
             try:
                 img = Image.open(file_path).convert('RGBA')
                 width, height = img.size
                 if width != 64 or height != 64:
                     raise ValueError("Размер изображения должен быть 64x64 пикселей")
-
+                
                 pixels = list(img.getdata())
                 colors = set(pixel[:3] for pixel in pixels if pixel[3] != 0)
                 if len(colors) > 15:
                     raise ValueError("Максимум 16 цветов в палитре (включая прозрачный)")
 
-                # Создание палитры с нулевым прозрачным слотом
                 palette = [(0, 0, 0, 0)]
                 color_map = {(0, 0, 0, 0): 0}
-
                 for r, g, b, a in pixels:
                     if a == 0:
                         continue
@@ -289,12 +297,10 @@ class PortraitViewerApp:
                     if color not in color_map and len(palette) < 16:
                         palette.append((r, g, b, 255))
                         color_map[color] = len(palette) - 1
+                
+                while len(palette) < 16:
+                    palette.append((0, 0, 0, 0))
 
-                # Принудительно гарантия прозрачного нулевого слота
-                palette[0] = (0, 0, 0, 0)
-                color_map = {c[:3]: i for i, c in enumerate(palette)}
-
-                # Индексируем пиксели
                 indexed_pixels = []
                 for r, g, b, a in pixels:
                     if a == 0:
@@ -309,17 +315,10 @@ class PortraitViewerApp:
                 self.last_file_path = file_path
                 self.last_parser = None
 
-                total_pixels = 64 * 64
+                total_pixels = 64*64
                 non_trans_calc = sum(1 for px in pixels if px[3] != 0)
-                palette_info = ', '.join(
-                    [f"{i:02X} ({r},{g},{b},{a})" for i, (r, g, b, a) in enumerate(palette) if i < len(colors) + 1]
-                )
-                self.last_log_text = (
-                    f"Файл: {os.path.basename(file_path)}\n"
-                    f"Non-transparent: {non_trans_calc} из {total_pixels}\n\n"
-                    f"Палитра:\n{palette_info}\n"
-                )
-
+                palette_info = ', '.join([f"{i:02X} ({r},{g},{b},{a})" for i, (r, g, b, a) in enumerate(palette) if i < len(colors) + 1])
+                self.last_log_text = f"Файл: {os.path.basename(file_path)}\nNon-transparent: {non_trans_calc} из {total_pixels}\n\nПалитра:\n{palette_info}\n"
                 self.text.delete(1.0, tk.END)
                 self.text.insert(tk.END, self.last_log_text)
 
@@ -330,9 +329,7 @@ class PortraitViewerApp:
                 import traceback
                 error_details = traceback.format_exc()
                 print(f"Полная ошибка: {error_details}")
-                messagebox.showerror(
-                    "Ошибка", f"Ошибка при загрузке PNG:\n{str(e)}\n\nПроверь консоль для подробностей."
-                )
+                messagebox.showerror("Ошибка", f"Ошибка при загрузке PNG:\n{str(e)}\n\nПроверь консоль для подробностей.")
                 self.status.config(text=f"❌ Ошибка: {str(e)}")
 
     def save_image(self):

@@ -37,8 +37,28 @@ class BitReader:
             val = (val << 1) | b
         return val
 
+
 def read_palette_from_header(data):
-    pal_bytes = data[4:36]
+    """
+    Динамически находит и читает палитру, учитывая переменную длину блоков BLINK и TALK.
+    Возвращает: палитру (list) и смещение начала графики (int).
+    """
+    offset = 0
+    if offset >= len(data) or data[offset] != 0:
+        raise ValueError("Invalid BLINK block: does not start with 00")
+    offset += 1
+    frame_count = data[offset] if offset < len(data) else 0
+    offset += 1
+    offset += frame_count * 4
+    if offset >= len(data) or data[offset] != 0:
+        raise ValueError("Invalid TALK block: does not start with 00")
+    offset += 1
+    frame_count = data[offset] if offset < len(data) else 0
+    offset += 1
+    offset += frame_count * 4
+    if offset + 32 > len(data):
+        raise ValueError("Data too short for palette")
+    pal_bytes = data[offset:offset+32]
     pal = []
     for i in range(0, 32, 2):
         first = pal_bytes[i]
@@ -46,27 +66,31 @@ def read_palette_from_header(data):
         b_n = first & 0x0F
         g_n = (second >> 4) & 0x0F
         r_n = second & 0x0F
-        r = int(round(r_n * 255 / 15))
+        r = int(round(r_n * 255 / 15))  # Оставляем /15 для правильных цветов
         g = int(round(g_n * 255 / 15))
         b = int(round(b_n * 255 / 15))
-        pal.append((r,g,b,255))
-    return pal
+        pal.append((r, g, b, 255))
+    graphic_offset = offset + 32 + 2  # +2 для MAGIC байтов после палитры
+    # Для отладки: убери print после теста
+    print(f"Calculated graphic_offset: {graphic_offset}")
+    return pal, graphic_offset
+
 
 def decompress_from_my_compressor(data_stream: io.BytesIO, output_png_path: str):
     """
     Распаковывает BIN, созданный SF1PortraitCompressor, в PNG 64x64.
+    Теперь самодостаточная: читает палитру и рассчитывает offset графики внутри.
     Возвращает: путь к сохранённому PNG файлу.
     """
     data = data_stream.read()
-    palette = read_palette_from_header(data)
-    stream = data[38:]
+    palette, graphic_offset = read_palette_from_header(data)
+    stream = data[graphic_offset:]
     br = BitReader(stream)
 
     W, H, SIZE = 64, 64, 64*64
     indexed = [0]*SIZE
     pos, last = 0, 0
 
-    # Пропустить init биты
     br.get_bit(); br.get_bit()
 
     while pos < SIZE:
@@ -80,7 +104,6 @@ def decompress_from_my_compressor(data_stream: io.BytesIO, output_png_path: str)
         if nxt is None: break
 
         if nxt == 1:
-            # Обработка copy_down_left/offset
             b0 = br.get_bit()
             if b0 == 0:
                 b1 = br.get_bit()
@@ -89,9 +112,8 @@ def decompress_from_my_compressor(data_stream: io.BytesIO, output_png_path: str)
                 target = pos + W - offset
                 if 0 <= target < SIZE:
                     indexed[target] = last
-            br.get_bit(); br.get_bit()  # два нуля
-            br.get_bit()  # контрольный бит
-            # Распаковка repeat run
+            br.get_bit(); br.get_bit()
+            br.get_bit()
             t3=0
             while True:
                 b=br.get_bit()
@@ -110,7 +132,6 @@ def decompress_from_my_compressor(data_stream: io.BytesIO, output_png_path: str)
             pos+=repeat
             continue
         else:
-            # Repeat run / advance
             t3=0
             while True:
                 b=br.get_bit()
@@ -129,13 +150,15 @@ def decompress_from_my_compressor(data_stream: io.BytesIO, output_png_path: str)
             pos+=repeat
             continue
 
-    img = Image.new('RGBA',(W,H))
+    img = Image.new('RGBA', (W, H))
     px = img.load()
-    for i,v in enumerate(indexed):
-        x=i%W; y=i//W
-        if v==0: px[x,y]=(0,0,0,0)
+    for i, v in enumerate(indexed):
+        x = i % W
+        y = i // W
+        if v == 0:
+            px[x, y] = (0, 0, 0, 0)
         else:
-            r,g,b,a=palette[v&0xF]
-            px[x,y]=(r,g,b,255)
+            r, g, b, a = palette[v & 0xF]
+            px[x, y] = (r, g, b, 255)
     img.save(output_png_path)
     return output_png_path
