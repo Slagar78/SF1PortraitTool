@@ -118,7 +118,7 @@ class RleParser:
 
     def get_summary_text(self):
         lines = []
-        lines.append(f"Размер: {self.ln} байт")
+        lines.append(f"Size: {self.ln} байт")
         lines.append("")
         lines.append("Blink:")
         if self.blink:
@@ -130,14 +130,14 @@ class RleParser:
             lines.append(f"  Hex: {self.talk[:16].hex(' ').upper()}{' ...' if len(self.talk)>16 else ''}")
         else:
             lines.append("  Отсутствует")
-        lines.append(f"Палитра: {len(self.palette)} байт")
+        lines.append(f"Palette: {len(self.palette)} байт")
         if self.palette:
             # отображаем пары hex палитры
             pairs = [f"{self.palette[i]:02X} {self.palette[i+1]:02X}" for i in range(0, min(len(self.palette), 32), 2)]
             lines.append("  " + ", ".join(pairs))
-        lines.append(f"Магия: {len(self.magic)} байт {self.magic.hex(' ').upper() if self.magic else ''}")
-        lines.append(f"Смещение графики: {self.graphic_offset}")
-        lines.append(f"Размер графики: {max(0, self.ln - (self.graphic_offset or self.ln))} байт")
+        lines.append(f"Magic: {len(self.magic)} байт {self.magic.hex(' ').upper() if self.magic else ''}")
+        lines.append(f"Graphic offset: {self.graphic_offset}")
+        lines.append(f"Graphic size: {max(0, self.ln - (self.graphic_offset or self.ln))} байт")
         return "\n".join(lines)
 
     def save_rle(self, dest_path=None):

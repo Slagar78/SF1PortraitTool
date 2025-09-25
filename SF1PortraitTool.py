@@ -260,7 +260,7 @@ class PortraitViewerApp:
                 self.text.delete(1.0, tk.END)
                 self.text.insert(tk.END, self.last_log_text)
                 self.redraw_image()
-                self.status.config(text=f"✅ Открыт портрет (RLE7): {os.path.basename(file_path)} | {non_trans} пикселей")
+                self.status.config(text=f"✅ Открыт портрет (RLE): {os.path.basename(file_path)} | {non_trans} пикселей")
                 
                 os.remove(temp_png_path)
                 

@@ -113,6 +113,7 @@ class AnimationEditor:
         tk.Button(btn_frame, text="Delete Frame", command=self.delete_frame).pack(side=tk.LEFT, padx=5)
         tk.Button(btn_frame, text="Apply Tile", command=self.apply_selected_tile).pack(side=tk.LEFT, padx=5)
         tk.Button(btn_frame, text="Save", command=self.save_changes).pack(side=tk.LEFT, padx=5)
+        tk.Button(btn_frame, text="Save RLE", command=self.save_rle_changes).pack(side=tk.LEFT, padx=5)
         tk.Button(btn_frame, text="Close", command=self.window.destroy).pack(side=tk.LEFT, padx=5)
 
         self.refresh_table()
@@ -260,11 +261,9 @@ class AnimationEditor:
             # пытаемся записать в файл (перезаписать оригинальный .bin)
             try:
                 saved_path = self.parser.save_sf1()  # по умолчанию перезапишет исходный файл
-                # после сохранения можно повторно распарсить, чтобы внутреннее состояние соответствовало файлу
                 try:
                     self.parser.parse()
                 except Exception:
-                    # не критично, главное что файл записан
                     pass
                 self.refresh_table()
                 messagebox.showinfo("Сохранено", f"Анимации обновлены и записаны в файл:\n{saved_path}")
@@ -273,16 +272,36 @@ class AnimationEditor:
         else:
             messagebox.showinfo("Сохранено","Анимации обновлены в памяти (parser отсутствует).")
 
+    def save_rle_changes(self):
+        """
+        Сохраняет изменения для RLE-портретов (RleParser).
+        """
+        blink_new = self.encode_animation(self.blink_frames)
+        talk_new = self.encode_animation(self.talk_frames)
+        if self.parser and hasattr(self.parser, "save_rle"):
+            try:
+                self.parser.blink = blink_new
+                self.parser.talk = talk_new
+                saved_path = self.parser.save_rle()
+                try:
+                    self.parser.parse()
+                except Exception:
+                    pass
+                self.refresh_table()
+                messagebox.showinfo("Сохранено", f"RLE портрет обновлён:\n{saved_path}")
+            except Exception as e:
+                messagebox.showerror("Ошибка сохранения", f"Не удалось сохранить RLE: {e}")
+        else:
+            messagebox.showinfo("Инфо","Parser не поддерживает save_rle()")
+
     def encode_animation(self, frames):
         data = bytearray()
         data.append(0x00)
-        # count must fit in one byte
         count = len(frames)
         if count > 255:
             raise ValueError("Too many frames (>255)")
         data.append(count)
         for x,y,x2,y2 in frames:
-            # если координаты “особые” – кодируем в SF1 байты
             if (x,y) in COORD_TO_SF1_TILE:
                 bx,by = COORD_TO_SF1_TILE[(x,y)]
             else:
